@@ -1,41 +1,168 @@
-
+// DEPENDENCIES
+// =====================================
+// Read and set environment variables
 require("dotenv").config();
 
-console.log(keys.js);
-var importKeys = require("keys.js").config();
+// Import the Twitter NPM package.
+var Twitter = require("twitter");
 
-//access keys information
+// Import the node-spotify-api NPM package.
+var Spotify = require("node-spotify-api");
+
+// Import the API keys
+var keys = require("./keys");
+
+// Import the request npm package.
+var request = require("request");
+
+// Import the moment npm package.
+var moment = require("moment");
+
+// Import the FS package for read/write.
+var fs = require("fs");
+
+// Initialize the spotify API client using our client id and secret
 var spotify = new Spotify(keys.spotify);
-var client = new Twitter(keys.twitter);
 
-// //Show the last 20 tweets
-// `my-tweets`
+// FUNCTIONS
+// =====================================
 
-// //Show the following song in terminal - artist, song name, preview link , albumn of song
-// //use the node spotify api
-// //use the node-spotify-api package
-// `spotify-this-song`
+// Writes to the log.txt file
+var getArtistNames = function(artist) {
+  return artist.name;
+};
 
-// //node liri.js movie-this '<movie name here>'
-// //output from API You'll use the request package to retrieve data from the OMDB API. Like all of the in-class activities, the OMDB API requires an API key. You may use trilogy.xz 
-// //    * Title of the movie.
-// //    * Year the movie came out.
-// //    * IMDB Rating of the movie.
-// //    * Rotten Tomatoes Rating of the movie.
-// //    * Country where the movie was produced.
-// //    * Language of the movie.
-// //    * Plot of the movie.
-// //    * Actors in the movie.
-// `movie-this`
-// // // # if using the module level client
-// // omdb.set_default('apikey', OMDB_KEY)
-// // # if creating a new client instance
-// client = omdb.OMDBClient(apikey=OMDB_KEY)
-// var omdbInfo = omdb.request(t='True Grit', y=1969, plot='full', tomatoes='true', timeout=5)
-// console.log(omdbInfo); 
+// Function for running a Spotify search
+var getMeSpotify = function(songName) {
+  if (songName === undefined) {
+    songName = "What's my age again";
+  }
 
-// // node liri.js do-what-it-says
-// // Using the fs Node package, LIRI will take the text inside of random.txt and then use it to call one of LIRI's commands.
-// // It should run spotify-this-song for "I Want it That Way," as follows the text in random.txt.
-// // Feel free to change the text in that document to test out the feature for other commands.
-// `do-what-it-says`
+  spotify.search(
+    {
+      type: "track",
+      query: songName
+    },
+    function(err, data) {
+      if (err) {
+        console.log("Error occurred: " + err);
+        return;
+      }
+
+      var songs = data.tracks.items;
+
+      for (var i = 0; i < songs.length; i++) {
+        console.log(i);
+        console.log("artist(s): " + songs[i].artists.map(getArtistNames));
+        console.log("song name: " + songs[i].name);
+        console.log("preview song: " + songs[i].preview_url);
+        console.log("album: " + songs[i].album.name);
+        console.log("-----------------------------------");
+      }
+    }
+  );
+};
+
+var getMyBands = function(artist) {
+  var queryURL = "https://rest.bandsintown.com/artists/" + artist + "/events?app_id=codingbootcamp";
+
+  request(queryURL, function(error, response, body) {
+    if (!error && response.statusCode === 200) {
+      var jsonData = JSON.parse(body);
+
+      if (!jsonData.length) {
+        console.log("No results found for " + artist);
+        return;
+      }
+
+      console.log("Upcoming concerts for " + artist + ":");
+
+      for (var i = 0; i < jsonData.length; i++) {
+        var show = jsonData[i];
+
+        // Print data about each concert
+        // If a concert doesn't have a region, display the country instead
+        // Use moment to format the date
+        console.log(
+          show.venue.city +
+            "," +
+            (show.venue.region || show.venue.country) +
+            " at " +
+            show.venue.name +
+            " " +
+            moment(show.datetime).format("MM/DD/YYYY")
+        );
+      }
+    }
+  });
+};
+
+// Function for running a Movie Search
+var getMeMovie = function(movieName) {
+  if (movieName === undefined) {
+    movieName = "Mr Nobody";
+  }
+
+  var urlHit =
+    "http://www.omdbapi.com/?t=" + movieName + "&y=&plot=full&tomatoes=true&apikey=trilogy";
+
+  request(urlHit, function(error, response, body) {
+    if (!error && response.statusCode === 200) {
+      var jsonData = JSON.parse(body);
+
+      console.log("Title: " + jsonData.Title);
+      console.log("Year: " + jsonData.Year);
+      console.log("Rated: " + jsonData.Rated);
+      console.log("IMDB Rating: " + jsonData.imdbRating);
+      console.log("Country: " + jsonData.Country);
+      console.log("Language: " + jsonData.Language);
+      console.log("Plot: " + jsonData.Plot);
+      console.log("Actors: " + jsonData.Actors);
+      console.log("Rotten Tomatoes Rating: " + jsonData.Ratings[1].Value);
+    }
+  });
+};
+
+// Function for running a command based on text file
+var doWhatItSays = function() {
+  fs.readFile("random.txt", "utf8", function(error, data) {
+    console.log(data);
+
+    var dataArr = data.split(",");
+
+    if (dataArr.length === 2) {
+      pick(dataArr[0], dataArr[1]);
+    } else if (dataArr.length === 1) {
+      pick(dataArr[0]);
+    }
+  });
+};
+
+// Function for determining which command is executed
+var pick = function(caseData, functionData) {
+  switch (caseData) {
+  case "concert-this":
+    getMyBands(functionData);
+    break;
+  case "spotify-this-song":
+    getMeSpotify(functionData);
+    break;
+  case "movie-this":
+    getMeMovie(functionData);
+    break;
+  case "do-what-it-says":
+    doWhatItSays();
+    break;
+  default:
+    console.log("LIRI doesn't know that");
+  }
+};
+
+// Function which takes in command line arguments and executes correct function accordingly
+var runThis = function(argOne, argTwo) {
+  pick(argOne, argTwo);
+};
+
+// MAIN PROCESS
+// =====================================
+runThis(process.argv[2], process.argv.slice(3).join(" "));
