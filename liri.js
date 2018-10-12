@@ -1,41 +1,166 @@
-
 require("dotenv").config();
+var keys = require('./keys.js');
+var request = require("request");
+var twitter = require("twitter");
+var spotify = require("spotify");
+var client = new twitter(keys.twitter);
+var fs = require("fs");
+//my variables
+var nodeArgv = process.argv;
+var command = process.argv[2];
 
-console.log(keys.js);
-var importKeys = require("keys.js").config();
 
-//access keys information
-var spotify = new Spotify(keys.spotify);
-var client = new Twitter(keys.twitter);
 
-// //Show the last 20 tweets
-// `my-tweets`
+//movie or song
+var s = "";
+//attaches multiple word arguments
+for (var i=3; i<nodeArgv.length; i++){
+  if(i>=3 && i<nodeArgv.length){
+    s = s + "+" + nodeArgv[i];
+  } else{
+    s =  + nodeArgv[i];
+  }
+}
 
-// //Show the following song in terminal - artist, song name, preview link , albumn of song
-// //use the node spotify api
-// //use the node-spotify-api package
-// `spotify-this-song`
+switch(command)
+{
+    case 'my-tweets':
+        ShowTweets();
+        break;
+    case 'spotify-this-song':
+        if(s)
+        {
+            SpotifySong(s);
+        }
+        else
+        {
+            SpotifySong("The Sign");
+        }
+        break;
+    case 'movie-this':
+        if(s)
+        {
+            movie(s);
+        }
+        else
+        {
+            movie("Mr. Nobody");
+        }
+        break;
+    case 'do-what-it-says':
+        doWhatSays();
+        break;
+    
+    default:
+        console.log("Please enter command: my-tweets,  spotify-this-song, movie-this, do-what-it-says");
+        break;
+}
 
-// //node liri.js movie-this '<movie name here>'
-// //output from API You'll use the request package to retrieve data from the OMDB API. Like all of the in-class activities, the OMDB API requires an API key. You may use trilogy.xz 
-// //    * Title of the movie.
-// //    * Year the movie came out.
-// //    * IMDB Rating of the movie.
-// //    * Rotten Tomatoes Rating of the movie.
-// //    * Country where the movie was produced.
-// //    * Language of the movie.
-// //    * Plot of the movie.
-// //    * Actors in the movie.
-// `movie-this`
-// // // # if using the module level client
-// // omdb.set_default('apikey', OMDB_KEY)
-// // # if creating a new client instance
-// client = omdb.OMDBClient(apikey=OMDB_KEY)
-// var omdbInfo = omdb.request(t='True Grit', y=1969, plot='full', tomatoes='true', timeout=5)
-// console.log(omdbInfo); 
+function ShowTweets()
+{
+    var params = {screen_name: 'JessalynCodes'};
+    client.get('statuses/user_timeline', params, function(error, tweets, response){
+        if(!error)
+        {
+            for(var i = 0; i < tweets.length; i++)
+            {
+                var date = tweets[i].created_at;
 
-// // node liri.js do-what-it-says
-// // Using the fs Node package, LIRI will take the text inside of random.txt and then use it to call one of LIRI's commands.
-// // It should run spotify-this-song for "I Want it That Way," as follows the text in random.txt.
-// // Feel free to change the text in that document to test out the feature for other commands.
-// `do-what-it-says`
+                console.log(`@jessalyncodes: ${tweets[i].text} Created At: ${date.substring(0,19)}`);
+                console.log(" ");
+
+                
+                fs.appendFile("log.txt", "@jessalyncodes " +tweets[i].text +  "Created At: " + date.substring(0,19) + "\n");
+                fs.appendFile("log.txt", "--------------------- \n");
+            }
+        }
+        else
+        {
+            console.log(error);
+        }
+    });
+}
+
+function SpotifySong(song)
+{
+    spotify.search({type: "track", query: song}, function(error, data){
+        if(!error)
+        {
+            
+            for(var i = 0; i < data.tracks.items.length; i++)
+            {
+                
+                var songinfo = data.tracks.items;
+                console.log(`Artist: ${songinfo.artists[0].name}`);
+                console.log(`Song: ${songinfo.name}`);
+                console.log(`Preview URL: ${songinfo.preview_url}`);
+                console.log(`Album: ${songinfo.album.name}`);
+
+              
+                fs.appendFile("log.txt", `Artist: ${songinfo.artists[0].name}`);
+                fs.appendFile("log.txt", `Song: ${songinfo.name}`);
+                fs.appendFile("log.txt", `Preview URL: ${songinfo.preview_url}`);
+                fs.appendFile("log.txt", `Album: ${songinfo.album.name}`);
+                fs.appendFile("log.txt","--------------------- \n");
+            }
+        }
+        else
+        {
+            console.log(error);
+        }
+    });
+}
+
+function movie(omdbmovie)
+{
+    var url = 'http://www.omdbapi.com/?i=tt3896198&apikey=3f7cc425&t=' + omdbmovie + '&plot=short&tomatoes=true';
+
+    request(url, function(error, response, body){
+        if(!error && response.statusCode == 200)
+        {
+            var body = JSON.parse(body);
+
+            console.log(`Title: ${body.Title}`);
+            console.log(`Release Year: ${body.Year}`);
+            console.log(`IMdB Rating: ${body.imdbRating}`);
+            console.log(`Rotten Tomatoes Rating: ${body.tomatoRating}`);
+            console.log(`Country: ${body.Country}`);
+            console.log(`Language: ${body.Language}`);
+            console.log(`Plot: ${body.Plot}`);
+            console.log(`Actors: ${body.Actors}`);
+            
+            fs.appendFile("log.txt", `Title: ${body.Title} \n`);
+            fs.appendFile("log.txt", `Release Year: ${body.Year} \n`);
+            fs.appendFile("log.txt", `IMdB Rating: ${body.imdbRating} \n`);
+            fs.appendFile("log.txt", `Rotten Tomatoes Rating: ${body.tomatoRating} \n `);
+            fs.appendFile("log.txt", `Country: ${body.Country} \n`);
+            fs.appendFile("log.txt", `Language: ${body.Language} \n`);
+            fs.appendFile("log.txt", `Plot: ${body.Plot} \n`);
+            fs.appendFile("log.txt", `Actors: ${body.Actors} \n`);
+            fs.appendFile("log.txt", "--------------------- \n");
+        }
+        else
+        {
+            console.log(error);
+        }
+
+        if(!omdbmovie)
+        {
+            console.log(" ");
+            console.log("If you haven't watched 'Mr. Nobody,' then you should: http://www.imdb.com/title/tt0485947/ \n It's on Netflix!");
+            
+            fs.appendFile("log.txt", "If you haven't watched 'Mr. Nobody,' then you should: http://www.imdb.com/title/tt0485947/ \n It's on Netflix!");
+
+        }
+    });
+}
+
+function doWhatSays()
+{
+    fs.readFile('random.txt', "utf8", function(error, data){
+        var txt = data.split(',');
+    
+        SpotifySong(txt[1]);
+      });
+}
+
